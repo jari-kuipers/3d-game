@@ -166,6 +166,10 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('chatMessage', (msg) => {
+        io.emit('chatMessage', { id: socket.id, message: msg });
+    });
+
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);
         delete players[socket.id];

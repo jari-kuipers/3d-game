@@ -98,6 +98,32 @@ function init() {
 
     // 5. Input Listeners
     const onKeyDown = function (event) {
+        // Chat Toggle
+        if (event.code === 'Enter') {
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput.style.display === 'none') {
+                // Open Chat
+                controls.unlock();
+                chatInput.style.display = 'block';
+                chatInput.focus();
+                // prevent movement
+                moveForward = false; moveBackward = false; moveLeft = false; moveRight = false;
+            } else {
+                // Send / Close Chat
+                const msg = chatInput.value;
+                if (msg.trim() !== '') {
+                    socket.emit('chatMessage', msg);
+                    chatInput.value = '';
+                }
+                chatInput.style.display = 'none';
+                controls.lock();
+            }
+            return;
+        }
+
+        // Block movement if chat is open
+        if (document.getElementById('chat-input').style.display !== 'none') return;
+
         switch (event.code) {
             case 'ArrowUp':
             case 'KeyW':
@@ -314,6 +340,14 @@ function initNetworking() {
             healthDisplay.innerText = `HEALTH: ${health}`;
             camera.position.set(data.x, 2, data.z);
         }
+    });
+
+    socket.on('chatMessage', (data) => {
+        const chatMessages = document.getElementById('chat-messages');
+        const msgDiv = document.createElement('div');
+        msgDiv.textContent = `${data.id.substring(0, 5)}: ${data.message}`;
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Auto scroll
     });
 }
 
