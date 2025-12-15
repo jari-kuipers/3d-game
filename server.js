@@ -25,6 +25,7 @@ const TERRAIN_SIZE = 100; // 100x100 grid
 const WORLD_SIZE = 2000;
 const SEGMENT_SIZE = WORLD_SIZE / TERRAIN_SIZE;
 let terrainData = []; // 2D array of heights
+const trees = []; // Array of {x, y, z}
 
 // Generate Terrain (Perlin Noise)
 function generateTerrain() {
@@ -46,7 +47,62 @@ function generateTerrain() {
     console.log(`Generated terrain: ${TERRAIN_SIZE}x${TERRAIN_SIZE}`);
 }
 
+function generateTrees() {
+    const TREE_COUNT = 200;
+
+    for (let i = 0; i < TREE_COUNT; i++) {
+        // Random Position
+        const x = (Math.random() * WORLD_SIZE) - (WORLD_SIZE / 2);
+        const z = (Math.random() * WORLD_SIZE) - (WORLD_SIZE / 2);
+
+        // Map world x,z to grid coordinates
+        // Note: This logic duplicates what's on the client 'getTerrainHeight' but simpler for grid lookup
+        // We can just grab the nearest grid point for simplicity or implement bilinear here too.
+        // Nearest neighbor is fine for placement.
+
+        // Find Height with Bilinear Interpolation for smooth placement
+        const halfSize = WORLD_SIZE / 2;
+        const segmentSize = WORLD_SIZE / TERRAIN_SIZE; // 20
+
+        // Continuous grid coordinates
+        let gridX = (x + halfSize) / segmentSize;
+        let gridZ = (z + halfSize) / segmentSize;
+
+        // Clamp
+        if (gridX < 0) gridX = 0;
+        if (gridX >= TERRAIN_SIZE) gridX = TERRAIN_SIZE - 0.001;
+        if (gridZ < 0) gridZ = 0;
+        if (gridZ >= TERRAIN_SIZE) gridZ = TERRAIN_SIZE - 0.001;
+
+        const x0 = Math.floor(gridX);
+        const z0 = Math.floor(gridZ);
+        const x1 = Math.min(x0 + 1, TERRAIN_SIZE);
+        const z1 = Math.min(z0 + 1, TERRAIN_SIZE);
+
+        const tx = gridX - x0;
+        const tz = gridZ - z0;
+
+        // Lookup heights
+        const h00 = terrainData[x0][z0];
+        const h10 = terrainData[x1][z0];
+        const h01 = terrainData[x0][z1];
+        const h11 = terrainData[x1][z1];
+
+        // Interpolate
+        const h0 = h00 * (1 - tx) + h10 * tx;
+        const h1 = h01 * (1 - tx) + h11 * tx;
+        const y = h0 * (1 - tz) + h1 * tz;
+
+        // Filter: Don't place underwater
+        if (y > -10) {
+            trees.push({ x, y, z });
+        }
+    }
+    console.log(`Generated ${trees.length} trees.`);
+}
+
 generateTerrain();
+generateTrees();
 
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
@@ -65,12 +121,14 @@ io.on('connection', (socket) => {
     // Send current players to new player
     socket.emit('currentPlayers', players);
 
-    // Send level configuration
     socket.emit('levelConfig', {
         size: TERRAIN_SIZE,
         worldSize: WORLD_SIZE,
         heightMap: terrainData
     });
+
+    // Send tree configuration
+    socket.emit('treeConfig', trees);
 
     // Broadcast new player to others
     socket.broadcast.emit('newPlayer', players[socket.id]);

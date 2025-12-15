@@ -254,6 +254,11 @@ function initNetworking() {
         loadLevel(levelData);
     });
 
+    // Tree Config
+    socket.on('treeConfig', (trees) => {
+        loadTrees(trees);
+    });
+
     // Load existing players
     socket.on('currentPlayers', (players) => {
         Object.keys(players).forEach((id) => {
@@ -384,6 +389,36 @@ function loadLevel(levelData) {
     scene.add(terrainMesh);
 
     console.log("Terrain loaded!");
+    console.log("Terrain loaded!");
+}
+
+function loadTrees(trees) {
+    // 3x Size
+    const trunkGeometry = new THREE.CylinderGeometry(1.5, 1.5, 15, 8); // 0.5->1.5, 5->15
+    const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+
+    const leavesGeometry = new THREE.ConeGeometry(9, 24, 8); // 3->9, 8->24
+    const leavesMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+
+    trees.forEach(tree => {
+        // Group for the tree
+        const treeGroup = new THREE.Group();
+        treeGroup.position.set(tree.x, tree.y, tree.z);
+
+        // Trunk
+        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+        trunk.position.y = 7.5; // Half height (15 / 2)
+        treeGroup.add(trunk);
+
+        // Leaves
+        const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+        leaves.position.y = 21; // Trunk height (15) + half leaves height (24/2 = 12) - overlap (6) -> ~21
+        treeGroup.add(leaves);
+
+        scene.add(treeGroup);
+        // objects.push(trunk); // Optional: collide with trunks?
+    });
+    console.log(`Loaded ${trees.length} trees.`);
 }
 
 function getTerrainHeight(x, z) {
@@ -576,7 +611,7 @@ function animate() {
         const p = projectiles[i];
         p.position.addScaledVector(p.userData.velocity, delta);
 
-        if (p.position.length() > 200) {
+        if (p.position.length() > 2000) { // Increased from 200 to 2000
             scene.remove(p);
             projectiles.splice(i, 1);
         }
