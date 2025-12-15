@@ -2,7 +2,55 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  touch-action: none;
+  /* Prevent browser zooming/scrolling */
+  user-select: none;
 }
+
+#zone_joystick_left,
+#zone_joystick_right {
+  position: absolute;
+  bottom: 50px;
+  width: 150px;
+  height: 150px;
+  z-index: 10;
+  display: none;
+  /* Hidden by default */
+  /* border: 1px solid rgba(255, 255, 255, 0.2); Debugging zones */
+}
+
+#zone_joystick_left {
+  left: 50px;
+}
+
+#zone_joystick_right {
+  right: 50px;
+}
+
+#btn-shoot {
+  position: absolute;
+  bottom: 80px;
+  right: 220px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: rgba(255, 0, 0, 0.5);
+  border: 2px solid white;
+  z-index: 11;
+  display: none;
+  /* Hidden by default */
+}
+
+/* Show controls only on touch devices */
+@media (hover: none) and (pointer: coarse) {
+
+  #btn-shoot,
+  #zone_joystick_left,
+  #zone_joystick_right {
+    display: block;
+  }
+}
+
 
 body {
   overflow: hidden;

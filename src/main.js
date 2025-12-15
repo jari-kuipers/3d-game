@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import Stats from 'stats.js';
 import { io } from 'socket.io-client';
+import nipplejs from 'nipplejs';
 
 // --- Configuration ---
 const SCENE_COLOR = 0x87CEEB; // Sky blue
@@ -23,6 +24,11 @@ let moveBackward = false;
 let moveLeft = false;
 let moveRight = false;
 let canJump = false;
+let isTouchDevice = false;
+
+// Mobile Input State
+const joystickLookVector = new THREE.Vector2(0, 0);
+const joystickMoveVector = new THREE.Vector2(0, 0);
 
 let prevTime = performance.now();
 const velocity = new THREE.Vector3();
@@ -65,6 +71,7 @@ function init() {
 
     // 3. Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.rotation.order = 'YXZ'; // Prevents roll/gimbal lock
     camera.position.y = 2; // Eye level
 
     // 4. Controls
@@ -176,20 +183,75 @@ function init() {
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setAnimationLoop(animate);
     document.body.appendChild(renderer.domElement);
+
+    // Check for touch
+    isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
     // 9. Resize Handler
     window.addEventListener('resize', onWindowResize);
 
     // 10. Networking
     initNetworking();
+
+    // 11. Mobile Controls
+    initMobileControls();
+}
+
+function initMobileControls() {
+    if (isTouchDevice) {
+        const instructions = document.getElementById('instructions');
+        if (instructions) instructions.style.display = 'none';
+    }
+
+    // Left Joystick (Movement)
+    const zoneLeft = document.getElementById('zone_joystick_left');
+    const managerLeft = nipplejs.create({
+        zone: zoneLeft,
+        mode: 'static',
+        position: { left: '50%', top: '50%' },
+        color: 'white'
+    });
+
+    managerLeft.on('move', (evt, data) => {
+        joystickMoveVector.set(data.vector.x, data.vector.y);
+    });
+
+    managerLeft.on('end', () => {
+        joystickMoveVector.set(0, 0);
+    });
+
+    // Right Joystick (Look)
+    const zoneRight = document.getElementById('zone_joystick_right');
+    const managerRight = nipplejs.create({
+        zone: zoneRight,
+        mode: 'static',
+        position: { left: '50%', top: '50%' },
+        color: 'white'
+    });
+
+    managerRight.on('move', (evt, data) => {
+        joystickLookVector.set(data.vector.x, data.vector.y);
+    });
+
+    managerRight.on('end', () => {
+        joystickLookVector.set(0, 0);
+    });
+
+    // Shoot Button
+    const btnShoot = document.getElementById('btn-shoot');
+    btnShoot.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // Prevent accidental selection
+        shoot();
+    });
 }
 
 function initNetworking() {
-    // In Dev: Connect to localhost:3000
+    // In Dev: Connect to current hostname:3000 (allows LAN access)
     // In Prod: Connect to relative path (same origin)
-    const socketUrl = import.meta.env.DEV ? 'http://localhost:3000' : '/';
+    const socketUrl = import.meta.env.DEV ? `http://${window.location.hostname}:3000` : '/';
     socket = io(socketUrl); // Connect to server
 
     socket.on('connect', () => {
@@ -340,7 +402,7 @@ function animate() {
     const time = performance.now();
     const delta = (time - prevTime) / 1000;
 
-    if (controls.isLocked === true) {
+    if (controls.isLocked === true || isTouchDevice) {
 
         // --- Physics / Movement ---
         raycaster.ray.origin.copy(camera.position);
@@ -354,12 +416,32 @@ function animate() {
         velocity.y -= GRAVITY * delta;
 
         // 3. Input
-        direction.z = Number(moveForward) - Number(moveBackward);
-        direction.x = Number(moveRight) - Number(moveLeft);
-        direction.normalize();
+        // Combine Keyboard (Discrete) + Joystick (Analog)
+        let inputZ = Number(moveForward) - Number(moveBackward);
+        let inputX = Number(moveRight) - Number(moveLeft);
 
-        if (moveForward || moveBackward) velocity.z -= direction.z * 400.0 * delta;
-        if (moveLeft || moveRight) velocity.x -= direction.x * 400.0 * delta;
+        // Add Joystick Input
+        if (Math.abs(joystickMoveVector.y) > 0) inputZ = joystickMoveVector.y;
+        if (Math.abs(joystickMoveVector.x) > 0) inputX = joystickMoveVector.x;
+
+        direction.z = inputZ; // NippleJS Y is forward (up) matches our needs (usually)
+        direction.x = inputX;
+
+        // Normalize only if using keyboard boundaries, but for analog we want speed variability?
+        // Actually simple normalize is safer for now to avoid super speed dial
+        if (inputZ !== 0 || inputX !== 0) direction.normalize();
+
+        if (Math.abs(direction.z) > 0) velocity.z -= direction.z * 400.0 * delta;
+        if (Math.abs(direction.x) > 0) velocity.x -= direction.x * 400.0 * delta;
+
+        // Mobile Look (Velocity Based)
+        if (Math.abs(joystickLookVector.x) > 0 || Math.abs(joystickLookVector.y) > 0) {
+            const LOOK_SPEED = 2.0;
+            camera.rotation.y -= joystickLookVector.x * LOOK_SPEED * delta;
+            // Inverted Y for natural "Up is Up" look
+            camera.rotation.x += joystickLookVector.y * LOOK_SPEED * delta;
+            camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+        }
 
         // 4. Move
         controls.moveRight(-velocity.x * delta);
