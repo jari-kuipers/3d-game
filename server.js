@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const { createNoise2D } = require('simplex-noise');
 
 const app = express();
 app.use(cors());
@@ -19,25 +20,33 @@ const io = new Server(server, {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const players = {};
-const levelObjects = []; // Shared world objects
-const CANVAS_SIZE = 2000; // Match floor size for limits
+// const levelObjects = []; // DEPRECATED: Old box output
+const TERRAIN_SIZE = 100; // 100x100 grid
+const WORLD_SIZE = 2000;
+const SEGMENT_SIZE = WORLD_SIZE / TERRAIN_SIZE;
+let terrainData = []; // 2D array of heights
 
-// Generate Level once on startup
-function generateLevel() {
-    for (let i = 0; i < 50; i++) {
-        levelObjects.push({
-            id: `box_${i}`,
-            type: 'box',
-            x: Math.floor(Math.random() * 20 - 10) * 20,
-            y: Math.floor(Math.random() * 20) * 20 + 10,
-            z: Math.floor(Math.random() * 20 - 10) * 20,
-            color: Math.random() // HSL hue 
-        });
+// Generate Terrain (Perlin Noise)
+function generateTerrain() {
+    const noise2D = createNoise2D();
+    const frequency = 0.05;
+    const amplitude = 60; // Max height variation
+
+    for (let x = 0; x <= TERRAIN_SIZE; x++) {
+        const row = [];
+        for (let z = 0; z <= TERRAIN_SIZE; z++) {
+            // Noise returns -1 to 1. Map to 0 to amplitude roughly.
+            // Using x, z as coordinates
+            const val = noise2D(x * frequency, z * frequency);
+            const height = val * amplitude;
+            row.push(height);
+        }
+        terrainData.push(row);
     }
-    console.log(`Generated level with ${levelObjects.length} objects.`);
+    console.log(`Generated terrain: ${TERRAIN_SIZE}x${TERRAIN_SIZE}`);
 }
 
-generateLevel();
+generateTerrain();
 
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
@@ -57,7 +66,11 @@ io.on('connection', (socket) => {
     socket.emit('currentPlayers', players);
 
     // Send level configuration
-    socket.emit('levelConfig', levelObjects);
+    socket.emit('levelConfig', {
+        size: TERRAIN_SIZE,
+        worldSize: WORLD_SIZE,
+        heightMap: terrainData
+    });
 
     // Broadcast new player to others
     socket.broadcast.emit('newPlayer', players[socket.id]);

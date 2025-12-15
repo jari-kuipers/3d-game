@@ -18,6 +18,7 @@
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "nipplejs": "^0.10.2",
+    "simplex-noise": "^4.0.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "stats.js": "^0.17.0",

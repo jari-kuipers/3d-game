@@ -15,9 +15,11 @@ const GRAVITY = 100.0; // Adjusted for mass-like feel
 // --- Globals ---
 let camera, scene, renderer, controls, stats;
 let socket;
-const objects = []; // Environment objects
+const objects = []; // Environment objects (Deprecated?)
 const remotePlayers = {}; // { id: mesh }
 let raycaster;
+let terrainMesh;
+let terrainData = null; // { size, worldSize, heightMap }
 
 let moveForward = false;
 let moveBackward = false;
@@ -162,7 +164,8 @@ function init() {
 
     const floorMaterial = new THREE.MeshBasicMaterial({ color: GROUND_COLOR, side: THREE.DoubleSide });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-    scene.add(floor);
+    // scene.add(floor); // REPLACED BY TERRAIN
+
 
     // Random Boxes - MOVED TO SERVER
     // Waiting for 'levelConfig' event...
@@ -321,6 +324,111 @@ function addRemotePlayer(playerInfo) {
     remotePlayers[playerInfo.id] = mesh;
 }
 
+function loadLevel(levelData) {
+    // Expecting { size, worldSize, heightMap }
+    terrainData = levelData;
+
+    const segments = levelData.size;
+    const worldSize = levelData.worldSize;
+
+    // Create Plane
+    const geometry = new THREE.PlaneGeometry(worldSize, worldSize, segments, segments);
+    geometry.rotateX(-Math.PI / 2);
+
+    // Modify Vertices based on HeightMap
+    // Position attribute is Float32Array [x, y, z, x, y, z, ...]
+    const positions = geometry.attributes.position.array;
+
+    // The plane is now flat on XZ. "Y" is Up. 
+    // Vertices are ordered row by row (Z) then col by col (X) usually.
+    // Let's iterate carefully.
+
+    for (let i = 0, j = 0, k = 0; i < positions.length; i += 3) {
+        // positions[i] is x
+        // positions[i+1] is y (up)
+        // positions[i+2] is z
+
+        // We want to map this vertex to our heightmap grid
+        // The plane geometry is centered at 0,0 usually.
+        // x goes from -1000 to 1000.
+        // z goes from -1000 to 1000.
+
+        // Grid coordinates (0 to 100)
+        // We know the vertex order for PlaneGeometry is row-major?
+        // Actually, let's just use the index `j` which counts vertices
+
+        // row index = floor(j / (segments + 1))
+        // col index = j % (segments + 1)
+
+        const ix = j % (segments + 1);
+        const iz = Math.floor(j / (segments + 1));
+
+        if (iz <= segments && ix <= segments) {
+            const h = levelData.heightMap[ix][iz]; // Map uses [x][z]
+            positions[i + 1] = h; // Set Y height
+        }
+
+        j++;
+    }
+
+    geometry.computeVertexNormals();
+
+    const material = new THREE.MeshStandardMaterial({
+        color: GROUND_COLOR,
+        flatShading: true,
+        side: THREE.DoubleSide
+    });
+
+    if (terrainMesh) scene.remove(terrainMesh);
+    terrainMesh = new THREE.Mesh(geometry, material);
+    scene.add(terrainMesh);
+
+    console.log("Terrain loaded!");
+}
+
+function getTerrainHeight(x, z) {
+    if (!terrainData) return 0;
+
+    const { size, worldSize, heightMap } = terrainData;
+    const segmentSize = worldSize / size; // 20
+    const halfSize = worldSize / 2; // 1000
+
+    // Convert world pos to grid pos (0 to 100)
+    // x: -1000 -> 0, 1000 -> 100
+    let gridX = (x + halfSize) / segmentSize;
+    let gridZ = (z + halfSize) / segmentSize;
+
+    // Clamp
+    if (gridX < 0) gridX = 0;
+    if (gridX >= size) gridX = size - 0.001;
+    if (gridZ < 0) gridZ = 0;
+    if (gridZ >= size) gridZ = size - 0.001;
+
+    // Integer parts
+    const x0 = Math.floor(gridX);
+    const z0 = Math.floor(gridZ);
+    const x1 = Math.min(x0 + 1, size);
+    const z1 = Math.min(z0 + 1, size);
+
+    // Fractional parts
+    const tx = gridX - x0;
+    const tz = gridZ - z0;
+
+    // Heights
+    // Note: PlaneGeometry vertex ordering might map X/Z differently than my array [x][z]
+    // Verify visualization. If it looks rotated, swap here.
+    const h00 = heightMap[x0][z0];
+    const h10 = heightMap[x1][z0];
+    const h01 = heightMap[x0][z1];
+    const h11 = heightMap[x1][z1];
+
+    // Bilinear Interpolation
+    const h0 = h00 * (1 - tx) + h10 * tx;
+    const h1 = h01 * (1 - tx) + h11 * tx;
+
+    return h0 * (1 - tz) + h1 * tz;
+}
+
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -441,10 +549,13 @@ function animate() {
         controls.moveForward(-velocity.z * delta);
         camera.position.y += (velocity.y * delta);
 
-        // 5. Floor Collision
-        if (camera.position.y < 2) {
+        // 5. Floor Collision / Terrain Following
+        const terrainH = getTerrainHeight(camera.position.x, camera.position.z);
+        const playerHeight = 2.0; // Eye level
+
+        if (camera.position.y < terrainH + playerHeight) {
             velocity.y = 0;
-            camera.position.y = 2;
+            camera.position.y = terrainH + playerHeight;
             canJump = true;
         }
 
