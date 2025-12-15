@@ -19,7 +19,25 @@ const io = new Server(server, {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const players = {};
+const levelObjects = []; // Shared world objects
 const CANVAS_SIZE = 2000; // Match floor size for limits
+
+// Generate Level once on startup
+function generateLevel() {
+    for (let i = 0; i < 50; i++) {
+        levelObjects.push({
+            id: `box_${i}`,
+            type: 'box',
+            x: Math.floor(Math.random() * 20 - 10) * 20,
+            y: Math.floor(Math.random() * 20) * 20 + 10,
+            z: Math.floor(Math.random() * 20 - 10) * 20,
+            color: Math.random() // HSL hue 
+        });
+    }
+    console.log(`Generated level with ${levelObjects.length} objects.`);
+}
+
+generateLevel();
 
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
@@ -37,6 +55,9 @@ io.on('connection', (socket) => {
 
     // Send current players to new player
     socket.emit('currentPlayers', players);
+
+    // Send level configuration
+    socket.emit('levelConfig', levelObjects);
 
     // Broadcast new player to others
     socket.broadcast.emit('newPlayer', players[socket.id]);

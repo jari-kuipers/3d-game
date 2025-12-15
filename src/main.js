@@ -164,20 +164,8 @@ function init() {
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     scene.add(floor);
 
-    // Random Boxes
-    const boxGeometry = new THREE.BoxGeometry(20, 20, 20);
-    for (let i = 0; i < 50; i++) {
-        const boxMaterial = new THREE.MeshPhongMaterial({ flatShading: true, map: null });
-        boxMaterial.color.setHSL(Math.random() * 0.2 + 0.5, 0.75, Math.random() * 0.25 + 0.75);
-
-        const box = new THREE.Mesh(boxGeometry, boxMaterial);
-        box.position.x = Math.floor(Math.random() * 20 - 10) * 20;
-        box.position.y = Math.floor(Math.random() * 20) * 20 + 10;
-        box.position.z = Math.floor(Math.random() * 20 - 10) * 20;
-
-        scene.add(box);
-        objects.push(box);
-    }
+    // Random Boxes - MOVED TO SERVER
+    // Waiting for 'levelConfig' event...
 
     // 8. Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -256,6 +244,11 @@ function initNetworking() {
 
     socket.on('connect', () => {
         console.log('Connected to server with ID:', socket.id);
+    });
+
+    // Level Config
+    socket.on('levelConfig', (levelData) => {
+        loadLevel(levelData);
     });
 
     // Load existing players
