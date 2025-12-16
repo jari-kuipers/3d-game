@@ -475,26 +475,16 @@ function loadTrees(trees) {
 function updateRemoteAnimal(data) {
     let mesh = remoteAnimals[data.id];
     if (!mesh) {
-        // Create new
-        const geometry = new THREE.BoxGeometry(1.5, 1.5, 3.0); // Longer Z to see rotation
-        const material = new THREE.MeshStandardMaterial({ color: 0xFF5733 });
-        mesh = new THREE.Mesh(geometry, material);
-
-        // Add "eyes" or distinct front feature
-        const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-        leftEye.position.set(-0.5, 0.5, 1.5); // Local Z is forward? Check logic
-        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-        rightEye.position.set(0.5, 0.5, 1.5);
-        mesh.add(leftEye);
-        mesh.add(rightEye);
-
+        // Create new Sheep
+        mesh = createSheepMesh();
         scene.add(mesh);
         remoteAnimals[data.id] = mesh;
 
         // Init target props
-        mesh.userData.targetPosition = new THREE.Vector3(data.x, data.y + 0.75, data.z);
+        mesh.userData.targetPosition = new THREE.Vector3(data.x, data.y, data.z); // Y handled by model offset?
+        // Note: createSheepMesh pivot should be at feet.
+        // data.y is terrain height.
+
         mesh.userData.targetRotation = data.rotation || 0;
 
         // Set initial pos instantly
@@ -505,10 +495,70 @@ function updateRemoteAnimal(data) {
 
     // Update target pos
     if (!mesh.userData.targetPosition) mesh.userData.targetPosition = new THREE.Vector3();
-    mesh.userData.targetPosition.set(data.x, data.y + 0.75, data.z);
+    mesh.userData.targetPosition.set(data.x, data.y, data.z);
 
     // Update target rotation
     mesh.userData.targetRotation = data.rotation || 0;
+}
+
+function createSheepMesh() {
+    const group = new THREE.Group();
+
+    // Materials
+    const whiteWool = new THREE.MeshStandardMaterial({ color: 0xffffff }); // White
+    const skin = new THREE.MeshStandardMaterial({ color: 0xeebb99 }); // Beige/Pinkish
+    const black = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const grey = new THREE.MeshStandardMaterial({ color: 0x444444 }); // Hooves/Legs
+
+    // 1. Body (Wool) - Center it roughly
+    // Box: W=1.7, H=1.6, D=2.6 (Fluffier, overlaps head/legs)
+    const bodyGeo = new THREE.BoxGeometry(1.7, 1.6, 2.6);
+    const body = new THREE.Mesh(bodyGeo, whiteWool);
+    body.position.y = 1.5; // Slightly higher/larger center
+    body.castShadow = true;
+    group.add(body);
+
+    // 2. Head (Skin + Wool Layer?)
+    // Simple Minecraft style: Box
+    const headGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+    const head = new THREE.Mesh(headGeo, skin); // Or wool? Minecraft sheep have skin faces but wool around? 
+    // Let's make it mainly white wool with beige face.
+    // For simplicity: skin colored box for now.
+    head.position.set(0, 2.2, 1.3); // Forward Z is positive in our previous logic?
+    // Wait, previously Z was forward? We need to align with our rotation logic.
+    // Yes, Z+ was forward in `getTerrainNormal` checks relative to camera? 
+    // Usually Z- is forward in Three.js (LookAt).
+    // Let's assume Z+ is "Forward" for the animal rotation logic (atan2(dx, dz)).
+
+    group.add(head);
+
+    // Eyes
+    const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+    const leftEye = new THREE.Mesh(eyeGeo, black);
+    leftEye.position.set(-0.3, 0.1, 0.51); // Relative to head
+    head.add(leftEye);
+
+    const rightEye = new THREE.Mesh(eyeGeo, black);
+    rightEye.position.set(0.3, 0.1, 0.51);
+    head.add(rightEye);
+
+    // 3. Legs (4x)
+    const legGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
+
+    const legPositions = [
+        { x: -0.5, z: 0.8 }, // Front Left
+        { x: 0.5, z: 0.8 },  // Front Right
+        { x: -0.5, z: -0.8 },// Back Left
+        { x: 0.5, z: -0.8 }  // Back Right
+    ];
+
+    legPositions.forEach(pos => {
+        const leg = new THREE.Mesh(legGeo, skin);
+        leg.position.set(pos.x, 0.4, pos.z); // y=0.4 (half height)
+        group.add(leg);
+    });
+
+    return group;
 }
 
 function getTerrainHeight(x, z) {
