@@ -2,7 +2,7 @@ services:
   - type: web
     name: 3d-game
     runtime: node
-    buildCommand: pnpm install && pnpm --filter wasm-game build
+    buildCommand: pnpm install && pnpm --filter fps-game build
     startCommand: pnpm start
     envVars:
       - key: NODE_VERSION
