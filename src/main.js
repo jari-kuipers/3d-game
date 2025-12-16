@@ -17,6 +17,7 @@ let camera, scene, renderer, controls, stats;
 let socket;
 const objects = []; // Environment objects (Deprecated?)
 const remotePlayers = {}; // { id: mesh }
+const remoteAnimals = {}; // { id: mesh }
 let raycaster;
 let terrainMesh;
 let terrainData = null; // { size, worldSize, heightMap }
@@ -285,6 +286,22 @@ function initNetworking() {
         loadTrees(trees);
     });
 
+    // Tree Config
+    socket.on('treeConfig', (trees) => {
+        loadTrees(trees);
+    });
+
+    // Animals
+    socket.on('currentAnimals', (animals) => {
+        Object.values(animals).forEach(animalData => {
+            updateRemoteAnimal(animalData);
+        });
+    });
+
+    socket.on('animalMoved', (animalData) => {
+        updateRemoteAnimal(animalData);
+    });
+
     // Load existing players
     socket.on('currentPlayers', (players) => {
         Object.keys(players).forEach((id) => {
@@ -455,6 +472,45 @@ function loadTrees(trees) {
     console.log(`Loaded ${trees.length} trees.`);
 }
 
+function updateRemoteAnimal(data) {
+    let mesh = remoteAnimals[data.id];
+    if (!mesh) {
+        // Create new
+        const geometry = new THREE.BoxGeometry(1.5, 1.5, 3.0); // Longer Z to see rotation
+        const material = new THREE.MeshStandardMaterial({ color: 0xFF5733 });
+        mesh = new THREE.Mesh(geometry, material);
+
+        // Add "eyes" or distinct front feature
+        const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-0.5, 0.5, 1.5); // Local Z is forward? Check logic
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(0.5, 0.5, 1.5);
+        mesh.add(leftEye);
+        mesh.add(rightEye);
+
+        scene.add(mesh);
+        remoteAnimals[data.id] = mesh;
+
+        // Init target props
+        mesh.userData.targetPosition = new THREE.Vector3(data.x, data.y + 0.75, data.z);
+        mesh.userData.targetRotation = data.rotation || 0;
+
+        // Set initial pos instantly
+        mesh.position.copy(mesh.userData.targetPosition);
+        mesh.rotation.y = mesh.userData.targetRotation;
+        return;
+    }
+
+    // Update target pos
+    if (!mesh.userData.targetPosition) mesh.userData.targetPosition = new THREE.Vector3();
+    mesh.userData.targetPosition.set(data.x, data.y + 0.75, data.z);
+
+    // Update target rotation
+    mesh.userData.targetRotation = data.rotation || 0;
+}
+
 function getTerrainHeight(x, z) {
     if (!terrainData) return 0;
 
@@ -496,6 +552,25 @@ function getTerrainHeight(x, z) {
     const h1 = h01 * (1 - tx) + h11 * tx;
 
     return h0 * (1 - tz) + h1 * tz;
+}
+
+function getTerrainNormal(x, z) {
+    if (!terrainData) return new THREE.Vector3(0, 1, 0);
+    const EPSILON = 0.5;
+    const hL = getTerrainHeight(x - EPSILON, z);
+    const hR = getTerrainHeight(x + EPSILON, z);
+    const hD = getTerrainHeight(x, z + EPSILON); // Down (Z+)
+    const hU = getTerrainHeight(x, z - EPSILON); // Up (Z-)
+
+    // Normal = cross vectors
+    const v1 = new THREE.Vector3(2 * EPSILON, hR - hL, 0);
+    const v2 = new THREE.Vector3(0, hD - hU, 2 * EPSILON);
+
+    // Cross product approach v2 x v1 (approx)
+    const normal = new THREE.Vector3();
+    normal.crossVectors(v2, v1).normalize();
+
+    return normal;
 }
 
 function onWindowResize() {
@@ -650,6 +725,77 @@ function animate() {
             projectiles.splice(i, 1);
         }
     }
+
+    // --- Animal Interpolation ---
+    const LERP_FACTOR = 10.0 * delta; // Adjust speed
+    Object.values(remoteAnimals).forEach(mesh => {
+        if (mesh.userData.targetPosition) {
+            mesh.position.lerp(mesh.userData.targetPosition, LERP_FACTOR);
+        }
+        if (mesh.userData.targetRotation !== undefined) {
+            // Simple scalar lerp for Y rotation
+            // Handle wrapping? e.g. -PI to PI. 
+            // Small optimization: check shortest path.
+            let current = mesh.rotation.y;
+            let target = mesh.userData.targetRotation;
+
+            // Shortest path logic
+            if (target - current > Math.PI) target -= Math.PI * 2;
+            if (target - current < -Math.PI) target += Math.PI * 2;
+
+            mesh.rotation.y += (target - current) * LERP_FACTOR;
+        }
+
+        // --- Normal Alignment ---
+        // Calculate normal at CURRENT position (interpolated)
+        const normal = getTerrainNormal(mesh.position.x, mesh.position.z);
+
+        // Align 'Up' to normal
+        // Strategy: Create a quaternion that rotates from (0,1,0) to 'normal'
+        // Then multiply that into the mesh determination.
+        // BUT, we already set rotation.y manually for direction.
+        // Combining Y-rotation (direction) and surface alignment (tilt) requires care.
+        // Easier approach: Use LookAt logic?
+        // Or: Construct basis vectors.
+        // Up = normal
+        // Forward = ... current direction vector but projected on plane?
+        // Let's try simple quaternion alignment:
+
+        const currentUp = new THREE.Vector3(0, 1, 0);
+        const quaternion = new THREE.Quaternion().setFromUnitVectors(currentUp, normal);
+
+        // We need to apply this TILT on top of the Y-rotation.
+        // Y-rotation happens around local Y? No, world Y usually.
+        // If we set mesh.rotation.y, we are setting Euler.
+        // Let's construct the full quaternion.
+
+        // 1. Rotation for direction (Y-axis)
+        const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), mesh.rotation.y);
+
+        // 2. Combine: Tilt * Yaw
+        mesh.quaternion.multiplyQuaternions(quaternion, qYaw);
+
+        // Note: usage of mesh.rotation.y above in lerp sets the euler.
+        // Overwriting mesh.quaternion works, BUT next frame mesh.rotation.y will read back from the quaternion?
+        // Or we should separate the "target yaw" from the actual object rotation.
+        // For simplicity: We Lerp the YAW stored in userdata, then reconstruct Quaternion each frame.
+
+        // Fix: Don't read mesh.rotation.y for Lerp logic if we overwrite quaternion?
+        // Let's store 'currentYaw' in userdata too?
+        if (mesh.userData.currentYaw === undefined) mesh.userData.currentYaw = mesh.rotation.y;
+
+        // Lerp Yaw
+        if (mesh.userData.targetRotation !== undefined) {
+            let current = mesh.userData.currentYaw;
+            let target = mesh.userData.targetRotation;
+            if (target - current > Math.PI) target -= Math.PI * 2;
+            if (target - current < -Math.PI) target += Math.PI * 2;
+            mesh.userData.currentYaw += (target - current) * LERP_FACTOR;
+        }
+
+        const qYawinterpolated = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), mesh.userData.currentYaw);
+        mesh.quaternion.multiplyQuaternions(quaternion, qYawinterpolated);
+    });
 
     prevTime = time;
 
