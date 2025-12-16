@@ -1,0 +1,15 @@
+{
+    "name": "wasm-game-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "packageManager": "pnpm@10.26.0",
+    "scripts": {
+        "build": "pnpm --filter fps-game build",
+        "start": "node apps/fps-game/server.js",
+        "dev:fps": "pnpm --filter fps-game dev",
+        "dev:survival": "pnpm --filter survival-game dev",
+        "server:fps": "node apps/fps-game/server.js",
+        "server:survival": "node apps/survival-game/server.js"
+    },
+    "description": "Multiplayer 3D game monorepo with FPS and Survival modes"
+}
