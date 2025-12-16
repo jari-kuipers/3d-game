@@ -16,6 +16,7 @@ const GRAVITY = 100.0; // Adjusted for mass-like feel
 let camera, scene, renderer, controls, stats;
 let socket;
 const objects = []; // Environment objects (Deprecated?)
+const collidables = []; // { x, z, radius }
 const remotePlayers = {}; // { id: mesh }
 const remoteAnimals = {}; // { id: mesh }
 let raycaster;
@@ -73,7 +74,7 @@ function init() {
     scene.add(light);
 
     // 3. Camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.rotation.order = 'YXZ'; // Prevents roll/gimbal lock
     camera.position.y = 2; // Eye level
 
@@ -451,6 +452,7 @@ function loadTrees(trees) {
     const leavesGeometry = new THREE.ConeGeometry(9, 24, 8); // 3->9, 8->24
     const leavesMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
 
+
     trees.forEach(tree => {
         // Group for the tree
         const treeGroup = new THREE.Group();
@@ -467,7 +469,8 @@ function loadTrees(trees) {
         treeGroup.add(leaves);
 
         scene.add(treeGroup);
-        // objects.push(trunk); // Optional: collide with trunks?
+        // Add to collidables
+        collidables.push({ x: tree.x, z: tree.z, radius: 2.0 }); // Slightly larger than trunk (1.5)
     });
     console.log(`Loaded ${trees.length} trees.`);
 }
@@ -739,8 +742,67 @@ function animate() {
         }
 
         // 4. Move
+        // 4. Move (with Collision)
+        const proposedX = camera.position.x - velocity.x * delta; // Note: controls.moveRight/Forward logic is complex to predicting exact world pos without applying.
+        // Controls.moveRight/Forward rely on camera local.
+        // Let's modify velocity based on collision BEFORE moving.
+
+        // Simpler approach: Calculate intended move, check collision, cancel if hit.
+        // Or "Push out".
+
+        // Let's use a "Candidate Position" approach but PointerLockControls makes it hard to decouple X/Z from Look.
+        // Instead, valid strategy:
+        // 1. Move
+        // 2. Check overlap
+        // 3. Push back
+
         controls.moveRight(-velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
+
+        // Collision Resolution (Push Back)
+        const playerRadius = 1.0;
+
+        // Trees
+        for (const obj of collidables) {
+            const dx = camera.position.x - obj.x;
+            const dz = camera.position.z - obj.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            const minDist = playerRadius + obj.radius;
+
+            if (dist < minDist) {
+                // Collision! Push out along normal
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const nz = dz / dist;
+
+                camera.position.x += nx * overlap;
+                camera.position.z += nz * overlap;
+
+                // Kill velocity into wall?
+                // Dot product velocity with normal... simpler just to let friction handle it or bounce
+            }
+        }
+
+        // Sheep
+        const sheepRadius = 1.5;
+        Object.values(remoteAnimals).forEach(mesh => {
+            const dx = camera.position.x - mesh.position.x;
+            const dz = camera.position.z - mesh.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            const minDist = playerRadius + sheepRadius;
+
+            if (dist < minDist) {
+                const overlap = minDist - dist;
+                // Guard 0 dist
+                if (dist > 0.001) {
+                    const nx = dx / dist;
+                    const nz = dz / dist;
+                    camera.position.x += nx * overlap;
+                    camera.position.z += nz * overlap;
+                }
+            }
+        });
+
         camera.position.y += (velocity.y * delta);
 
         // 5. Floor Collision / Terrain Following
