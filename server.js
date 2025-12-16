@@ -233,6 +233,7 @@ io.on('connection', (socket) => {
         y: 2,
         z: Math.random() * 40 - 20,
         rotation: 0,
+        rx: 0, // Rotation X (Pitch)
         health: 100
     };
 
@@ -260,6 +261,7 @@ io.on('connection', (socket) => {
             players[socket.id].y = movementData.y;
             players[socket.id].z = movementData.z;
             players[socket.id].rotation = movementData.rotation;
+            players[socket.id].rx = movementData.rx;
 
             // Broadcast movement to others
             socket.broadcast.emit('playerMoved', players[socket.id]);

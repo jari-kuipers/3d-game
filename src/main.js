@@ -322,6 +322,7 @@ function initNetworking() {
         if (remotePlayers[playerInfo.id]) {
             remotePlayers[playerInfo.id].position.set(playerInfo.x, playerInfo.y, playerInfo.z);
             remotePlayers[playerInfo.id].rotation.y = playerInfo.rotation;
+            remotePlayers[playerInfo.id].userData.rx = playerInfo.rx; // Store Pitch
         }
     });
 
@@ -336,7 +337,9 @@ function initNetworking() {
     // Visual Shoot Event
     socket.on('playerShot', (data) => {
         if (remotePlayers[data.id]) {
-            visualizeShot(remotePlayers[data.id].position, remotePlayers[data.id].rotation);
+            const p = remotePlayers[data.id];
+            // Pass pitch (_x) and yaw (_y)
+            visualizeShot(p.position, { _y: p.rotation.y, _x: p.userData.rx });
         }
     });
 
@@ -669,11 +672,12 @@ function visualizeShot(origin, rotationOrQuaternion, isLocal = false) {
     if (rotationOrQuaternion.isQuaternion) {
         direction.applyQuaternion(rotationOrQuaternion);
     } else {
-        // Remote players send Euler y rotation, we need to reconstruct direction
-        // This is a simplification; ideally we sync quaternion or look vector
-        // For box players, rotation.y is usually enough for body, but not pitch.
-        // We'll just shoot 'forward' from their body for now.
-        direction.set(Math.sin(rotationOrQuaternion._y), 0, Math.cos(rotationOrQuaternion._y)); // Approximate
+        // Remote players send Euler y rotation + x pitch
+        // Construct full rotation. Camera is YXZ order.
+        const pitch = rotationOrQuaternion._x || 0;
+        const yaw = rotationOrQuaternion._y || 0;
+        const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+        direction.set(0, 0, -1).applyEuler(euler);
     }
 
     // Offset
@@ -830,7 +834,8 @@ function animate() {
                 x: camera.position.x,
                 y: camera.position.y,
                 z: camera.position.z,
-                rotation: camera.rotation.y // Only yaw is needed for body rotation usually
+                rotation: camera.rotation.y, // Yaw
+                rx: camera.rotation.x // Pitch
             });
         }
     }
