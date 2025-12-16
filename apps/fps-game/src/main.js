@@ -4,10 +4,10 @@ import { GameEngine, InputManager, PhysicsController, NetworkClient } from 'clie
 import { TerrainRenderer, EntityRenderer } from 'rendering-utils';
 import { UIComponents } from 'ui-components';
 import { WeaponSystem } from 'shooting-mechanics';
+import { AnimalManager } from 'animal-animation';
 
 // --- Game State ---
 const remotePlayers = {};
-const remoteAnimals = {};
 let health = 100;
 
 // --- Initialize Core Systems ---
@@ -17,6 +17,7 @@ const network = new NetworkClient();
 const terrain = new TerrainRenderer(engine.scene);
 const physics = new PhysicsController(engine.camera, engine.controls);
 const weapons = new WeaponSystem(engine.scene, engine.camera);
+const animalManager = new AnimalManager(engine.scene, terrain, EntityRenderer);
 
 // --- UI Setup ---
 const stats = new Stats();
@@ -132,13 +133,11 @@ network.on('leaderboardUpdate', (playersList) => {
 });
 
 network.on('currentAnimals', (animals) => {
-    Object.values(animals).forEach(animalData => {
-        updateRemoteAnimal(animalData);
-    });
+    animalManager.handleInitialAnimals(animals);
 });
 
-network.on('animalMoved', (animalData) => {
-    updateRemoteAnimal(animalData);
+network.on('animalMoved', (data) => {
+    animalManager.handleAnimalUpdate(data);
 });
 
 // --- Helper Functions ---
@@ -158,24 +157,6 @@ function addRemotePlayer(playerInfo) {
     remotePlayers[playerInfo.id] = mesh;
 }
 
-function updateRemoteAnimal(data) {
-    let mesh = remoteAnimals[data.id];
-    if (!mesh) {
-        mesh = EntityRenderer.createSheepMesh();
-        engine.scene.add(mesh);
-        remoteAnimals[data.id] = mesh;
-        mesh.userData.targetPosition = new THREE.Vector3(data.x, data.y, data.z);
-        mesh.userData.targetRotation = data.rotation || 0;
-        mesh.position.copy(mesh.userData.targetPosition);
-        mesh.rotation.y = mesh.userData.targetRotation;
-        return;
-    }
-
-    if (!mesh.userData.targetPosition) mesh.userData.targetPosition = new THREE.Vector3();
-    mesh.userData.targetPosition.set(data.x, data.y, data.z);
-    mesh.userData.targetRotation = data.rotation || 0;
-}
-
 // --- Animation Loop ---
 engine.onAnimate((delta, time) => {
     stats.begin();
@@ -185,7 +166,7 @@ engine.onAnimate((delta, time) => {
         const inputDirection = input.getInputDirection();
 
         // Set dynamic collidables (sheep)
-        physics.setDynamicCollidables(remoteAnimals, 1.5);
+        physics.setDynamicCollidables(animalManager.getAnimals(), 1.5);
 
         // Update physics
         physics.update(delta, inputDirection, input);
@@ -197,31 +178,8 @@ engine.onAnimate((delta, time) => {
     // Update weapons (projectiles)
     weapons.update(delta);
 
-    // Animate animals
-    const LERP_FACTOR = 10.0 * delta;
-    Object.values(remoteAnimals).forEach(mesh => {
-        if (mesh.userData.targetPosition) {
-            mesh.position.lerp(mesh.userData.targetPosition, LERP_FACTOR);
-        }
-
-        if (mesh.userData.targetRotation !== undefined) {
-            // Rotation lerp with wrapping
-            if (mesh.userData.currentYaw === undefined) mesh.userData.currentYaw = mesh.rotation.y;
-
-            let current = mesh.userData.currentYaw;
-            let target = mesh.userData.targetRotation;
-            if (target - current > Math.PI) target -= Math.PI * 2;
-            if (target - current < -Math.PI) target += Math.PI * 2;
-            mesh.userData.currentYaw += (target - current) * LERP_FACTOR;
-
-            // Align to terrain normal
-            const normal = terrain.getNormal(mesh.position.x, mesh.position.z);
-            const currentUp = new THREE.Vector3(0, 1, 0);
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(currentUp, normal);
-            const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), mesh.userData.currentYaw);
-            mesh.quaternion.multiplyQuaternions(quaternion, qYaw);
-        }
-    });
+    // Update animals (position/rotation interpolation, terrain alignment)
+    animalManager.update(delta);
 
     stats.end();
 });

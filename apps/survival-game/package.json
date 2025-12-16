@@ -30,6 +30,7 @@
     "game-logic": "workspace:*",
     "client-core": "workspace:*",
     "rendering-utils": "workspace:*",
-    "ui-components": "workspace:*"
+    "ui-components": "workspace:*",
+    "animal-animation": "workspace:*"
   }
 }

@@ -31,6 +31,7 @@
     "client-core": "workspace:*",
     "rendering-utils": "workspace:*",
     "ui-components": "workspace:*",
-    "shooting-mechanics": "workspace:*"
+    "shooting-mechanics": "workspace:*",
+    "animal-animation": "workspace:*"
   }
 }
