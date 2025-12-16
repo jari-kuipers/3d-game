@@ -1,0 +1,46 @@
+{
+  "hash": "307a96df",
+  "configHash": "d89824e5",
+  "lockfileHash": "41111d58",
+  "browserHash": "aa14f1d4",
+  "optimized": {
+    "nipplejs": {
+      "src": "../../node_modules/nipplejs/src/index.js",
+      "file": "nipplejs.js",
+      "fileHash": "5600b847",
+      "needsInterop": false
+    },
+    "socket.io-client": {
+      "src": "../../node_modules/socket.io-client/build/esm/index.js",
+      "file": "socket__io-client.js",
+      "fileHash": "5f1b5d28",
+      "needsInterop": false
+    },
+    "stats.js": {
+      "src": "../../node_modules/stats.js/build/stats.min.js",
+      "file": "stats__js.js",
+      "fileHash": "b18964ce",
+      "needsInterop": true
+    },
+    "three": {
+      "src": "../../node_modules/three/build/three.module.js",
+      "file": "three.js",
+      "fileHash": "805c18a4",
+      "needsInterop": false
+    },
+    "three/addons/controls/PointerLockControls.js": {
+      "src": "../../node_modules/three/examples/jsm/controls/PointerLockControls.js",
+      "file": "three_addons_controls_PointerLockControls__js.js",
+      "fileHash": "f25ec9f4",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-PF4EC4Q7": {
+      "file": "chunk-PF4EC4Q7.js"
+    },
+    "chunk-HKJ2B2AA": {
+      "file": "chunk-HKJ2B2AA.js"
+    }
+  }
+}

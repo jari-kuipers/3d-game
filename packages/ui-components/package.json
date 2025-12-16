@@ -1,0 +1,7 @@
+{
+    "name": "ui-components",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "index.js",
+    "peerDependencies": {}
+}

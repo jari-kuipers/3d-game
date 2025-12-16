@@ -13,7 +13,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.2.1",
@@ -24,6 +24,13 @@
     "stats.js": "^0.17.0",
     "three": "^0.182.0",
     "vite": "^7.3.0",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "terrain-gen": "workspace:*",
+    "physics-engine": "workspace:*",
+    "game-logic": "workspace:*",
+    "client-core": "workspace:*",
+    "rendering-utils": "workspace:*",
+    "ui-components": "workspace:*",
+    "shooting-mechanics": "workspace:*"
   }
 }

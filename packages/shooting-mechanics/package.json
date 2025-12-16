@@ -1,0 +1,9 @@
+{
+    "name": "shooting-mechanics",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "index.js",
+    "peerDependencies": {
+        "three": "^0.182.0"
+    }
+}

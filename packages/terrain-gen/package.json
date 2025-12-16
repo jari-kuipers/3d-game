@@ -1,0 +1,9 @@
+{
+    "name": "terrain-gen",
+    "version": "1.0.0",
+    "main": "index.js",
+    "type": "module",
+    "dependencies": {
+        "simplex-noise": "^4.0.3"
+    }
+}
