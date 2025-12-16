@@ -256,6 +256,9 @@ io.on('connection', (socket) => {
     // Send animals
     socket.emit('currentAnimals', animals);
 
+    // Send initial leaderboard
+    socket.emit('leaderboardUpdate', Object.values(players));
+
     // Broadcast new player to others
     socket.broadcast.emit('newPlayer', players[socket.id]);
 
