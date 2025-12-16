@@ -54,6 +54,92 @@ healthDisplay.style.fontFamily = 'Arial, sans-serif';
 healthDisplay.innerText = 'HEALTH: 100';
 document.body.appendChild(healthDisplay);
 
+// Chat UI
+const chatContainer = document.createElement('div');
+chatContainer.style.position = 'absolute';
+chatContainer.style.bottom = '80px';
+chatContainer.style.left = '20px';
+chatContainer.style.width = '300px';
+chatContainer.style.height = '150px';
+chatContainer.style.overflowY = 'hidden'; // Auto-scroll usually means hidden scrollbar looks cleaner
+chatContainer.style.display = 'flex';
+chatContainer.style.flexDirection = 'column';
+chatContainer.style.justifyContent = 'flex-end';
+chatContainer.style.pointerEvents = 'none'; // Click through
+chatContainer.style.fontFamily = 'Arial, sans-serif';
+chatContainer.style.fontSize = '16px';
+chatContainer.style.textShadow = '1px 1px 1px #000';
+document.body.appendChild(chatContainer);
+
+function addChatMessage(text, color = '#ffffff') {
+    const msg = document.createElement('div');
+    msg.innerText = text;
+    msg.style.color = color;
+    msg.style.marginBottom = '4px';
+    chatContainer.appendChild(msg);
+
+    // Keep last 10 messages
+    if (chatContainer.children.length > 10) {
+        chatContainer.removeChild(chatContainer.firstChild);
+    }
+}
+
+// Leaderboard UI
+const leaderboard = document.createElement('div');
+leaderboard.style.position = 'absolute';
+leaderboard.style.top = '50%';
+leaderboard.style.left = '50%';
+leaderboard.style.transform = 'translate(-50%, -50%)';
+leaderboard.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+leaderboard.style.color = '#fff';
+leaderboard.style.padding = '20px';
+leaderboard.style.display = 'none';
+leaderboard.style.borderRadius = '10px';
+leaderboard.style.fontFamily = 'Arial, sans-serif';
+leaderboard.style.minWidth = '300px';
+document.body.appendChild(leaderboard);
+
+// Leaderboard Title
+const lbTitle = document.createElement('h2');
+lbTitle.innerText = 'Leaderboard';
+lbTitle.style.textAlign = 'center';
+lbTitle.style.marginTop = '0';
+leaderboard.appendChild(lbTitle);
+
+// Leaderboard Table
+const lbTable = document.createElement('table');
+lbTable.style.width = '100%';
+lbTable.style.borderCollapse = 'collapse';
+lbTable.innerHTML = `
+    <thead>
+        <tr style="border-bottom: 1px solid #555;">
+            <th style="padding: 10px; text-align: left;">Name</th>
+            <th style="padding: 10px; text-align: center;">Kills</th>
+            <th style="padding: 10px; text-align: center;">Deaths</th>
+        </tr>
+    </thead>
+    <tbody id="lb-body"></tbody>
+`;
+leaderboard.appendChild(lbTable);
+
+function updateLeaderboardUI(playersList) {
+    const tbody = document.getElementById('lb-body');
+    tbody.innerHTML = '';
+
+    // Sort by kills desc
+    playersList.sort((a, b) => b.kills - a.kills);
+
+    playersList.forEach(p => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="padding: 5px;">${p.name || 'Unknown'}</td>
+            <td style="padding: 5px; text-align: center;">${p.kills || 0}</td>
+            <td style="padding: 5px; text-align: center;">${p.deaths || 0}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
 
 init();
 
@@ -123,8 +209,12 @@ function init() {
             return;
         }
 
-        // Block movement if chat is open
-        if (document.getElementById('chat-input').style.display !== 'none') return;
+        if (document.getElementById('chat-input') && document.getElementById('chat-input').style.display !== 'none') return;
+
+        if (event.code === 'Tab') {
+            event.preventDefault();
+            leaderboard.style.display = 'block';
+        }
 
         switch (event.code) {
             case 'ArrowUp':
@@ -151,6 +241,10 @@ function init() {
     };
 
     const onKeyUp = function (event) {
+        if (event.code === 'Tab') {
+            leaderboard.style.display = 'none';
+        }
+
         switch (event.code) {
             case 'ArrowUp':
             case 'KeyW':
@@ -315,6 +409,7 @@ function initNetworking() {
     // New player joined
     socket.on('newPlayer', (playerInfo) => {
         addRemotePlayer(playerInfo);
+        addChatMessage('Player joined', '#00FF00'); // Green
     });
 
     // Player moved
@@ -331,6 +426,7 @@ function initNetworking() {
         if (remotePlayers[id]) {
             scene.remove(remotePlayers[id]);
             delete remotePlayers[id];
+            addChatMessage('Player left', '#FF0000'); // Red
         }
     });
 
@@ -364,11 +460,15 @@ function initNetworking() {
     });
 
     socket.on('chatMessage', (data) => {
-        const chatMessages = document.getElementById('chat-messages');
-        const msgDiv = document.createElement('div');
-        msgDiv.textContent = `${data.id.substring(0, 5)}: ${data.message}`;
-        chatMessages.appendChild(msgDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight; // Auto scroll
+        // System messages vs player messages
+        // data.id might be 'System' or socket.id
+        const sender = data.id === 'System' ? '' : `[${data.id.substring(0, 5)}] `;
+        const color = data.id === 'System' ? '#FFFF00' : '#FFFFFF'; // Yellow for system
+        addChatMessage(`${sender}${data.message}`, color);
+    });
+
+    socket.on('leaderboardUpdate', (playersList) => {
+        updateLeaderboardUI(playersList);
     });
 }
 
@@ -379,6 +479,15 @@ function addRemotePlayer(playerInfo) {
 
     mesh.position.set(playerInfo.x, playerInfo.y, playerInfo.z);
     mesh.rotation.y = playerInfo.rotation;
+
+    // Add Name Tag
+    if (playerInfo.name) {
+        const nameTag = createNameTag(playerInfo.name);
+        nameTag.position.y = 2.5; // Above head (which is 4 high/2 = 2? No box is centered at 0?)
+        // Box height is 4. Center at 0, so top is 2.
+        // Let's put it at 2.5
+        mesh.add(nameTag);
+    }
 
     scene.add(mesh);
     remotePlayers[playerInfo.id] = mesh;
@@ -608,6 +717,31 @@ function getTerrainHeight(x, z) {
     const h1 = h01 * (1 - tx) + h11 * tx;
 
     return h0 * (1 - tz) + h1 * tz;
+}
+
+function createNameTag(name) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+
+    context.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent black bg
+    context.fillRect(0, 0, 256, 64);
+
+    context.font = 'Bold 32px Arial';
+    context.fillStyle = 'white';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(name, 128, 32);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+
+    // Scale sprite to match aspect ratio
+    sprite.scale.set(4, 1, 1); // 256/64 = 4:1
+
+    return sprite;
 }
 
 function getTerrainNormal(x, z) {

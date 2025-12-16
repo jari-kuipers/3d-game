@@ -20,6 +20,7 @@ const io = new Server(server, {
 app.use(express.static(path.join(__dirname, 'dist')));
 
 const players = {};
+let playerCount = 0;
 // const levelObjects = []; // DEPRECATED: Old box output
 const TERRAIN_SIZE = 100; // 100x100 grid
 const WORLD_SIZE = 2000;
@@ -234,7 +235,10 @@ io.on('connection', (socket) => {
         z: Math.random() * 40 - 20,
         rotation: 0,
         rx: 0, // Rotation X (Pitch)
-        health: 100
+        health: 100,
+        kills: 0,
+        deaths: 0,
+        name: `Player ${++playerCount}`
     };
 
     // Send current players to new player
@@ -281,8 +285,22 @@ io.on('connection', (socket) => {
             if (players[targetId].health <= 0) {
                 // Respawn Logic
                 players[targetId].health = 100;
+                players[targetId].deaths++;
                 players[targetId].x = Math.random() * 40 - 20;
                 players[targetId].z = Math.random() * 40 - 20;
+
+                // Credit Killer
+                if (players[socket.id]) {
+                    players[socket.id].kills++;
+                }
+
+                // Kill Feed Message
+                const victimName = players[targetId].name;
+                const killerName = players[socket.id] ? players[socket.id].name : "Unknown";
+                io.emit('chatMessage', { id: 'System', message: `${victimName} 🔫 ${killerName}` });
+
+                // Leaderboard Update
+                io.emit('leaderboardUpdate', Object.values(players));
 
                 io.emit('playerRespawn', players[targetId]);
             }
