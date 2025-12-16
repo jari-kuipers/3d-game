@@ -23,6 +23,11 @@ const io = new Server(httpServer, {
 
 app.use(express.static(path.join(__dirname, 'dist')));
 
+// Serve index.html for all routes (SPA fallback)
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
+
 const players = {};
 let playerCount = 0;
 const trees = [];

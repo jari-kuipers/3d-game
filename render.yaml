@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: 3d-game
+    runtime: node
+    buildCommand: pnpm install && pnpm --filter wasm-game build
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: PNPM_VERSION
+        value: 10.26.0
