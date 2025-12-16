@@ -15,6 +15,7 @@ export class PhysicsController {
             friction: config.friction || 10.0,
             playerHeight: config.playerHeight || 2.0,
             playerRadius: config.playerRadius || 1.0,
+            spawnPosition: config.spawnPosition || { x: 0, y: 0, z: 0 },
             ...config
         };
 
@@ -22,14 +23,36 @@ export class PhysicsController {
         this.canJump = false;
         this.collidables = []; // Array of {x, z, radius} for static objects
         this.dynamicCollidables = []; // Array of objects with .position property
-        this.getTerrainHeight = null; // Function to get terrain height at (x, z)
+        this.terrain = null; // Terrain provider object
     }
 
     /**
-     * Set the terrain height function
+     * Set the terrain provider and snap player to spawn
+     * @param {Object} terrain - Object with getHeight(x, z) method
      */
-    setTerrainHeightFunction(fn) {
-        this.getTerrainHeight = fn;
+    setTerrain(terrain) {
+        if (!terrain || typeof terrain.getHeight !== 'function') {
+            console.warn('PhysicsController: Invalid terrain provider');
+            return;
+        }
+        this.terrain = terrain;
+        this.snapToSpawn();
+    }
+
+    /**
+     * Snap player to the configured spawn position adjusted for terrain height
+     */
+    snapToSpawn() {
+        if (!this.terrain) return;
+
+        const { x, z } = this.config.spawnPosition;
+        const groundHeight = this.terrain.getHeight(x, z);
+
+        // height + playerHeight
+        this.camera.position.set(x, groundHeight + this.config.playerHeight, z);
+
+        // Reset velocity
+        this.velocity.set(0, 0, 0);
     }
 
     /**
@@ -38,6 +61,9 @@ export class PhysicsController {
     addCollidable(x, z, radius) {
         this.collidables.push({ x, z, radius });
     }
+
+    // ... (rest of methods)
+
 
     /**
      * Clear all collidables
@@ -143,9 +169,9 @@ export class PhysicsController {
     }
 
     handleTerrainCollision(inputManager) {
-        if (!this.getTerrainHeight) return;
+        if (!this.terrain) return;
 
-        const terrainH = this.getTerrainHeight(this.camera.position.x, this.camera.position.z);
+        const terrainH = this.terrain.getHeight(this.camera.position.x, this.camera.position.z);
         const playerHeight = this.config.playerHeight;
 
         if (this.camera.position.y < terrainH + playerHeight) {

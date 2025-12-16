@@ -9,6 +9,7 @@ export class GameEngine {
         this.config = {
             sceneColor: config.sceneColor || 0x87CEEB,
             fogDistance: config.fogDistance || 750,
+            startPosition: config.startPosition,
             ...config
         };
 
@@ -38,7 +39,11 @@ export class GameEngine {
 
         // Camera setup
         this.camera.rotation.order = 'YXZ'; // Prevents gimbal lock
-        this.camera.position.y = 2; // Eye level
+        this.camera.position.set(
+            this.config.startPosition?.x ?? 180,
+            this.config.startPosition?.y ?? 2,
+            this.config.startPosition?.z ?? 0
+        );
 
         // Renderer setup
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

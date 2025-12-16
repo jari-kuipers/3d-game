@@ -15,7 +15,9 @@ const engine = new GameEngine();
 const input = new InputManager();
 const network = new NetworkClient();
 const terrain = new TerrainRenderer(engine.scene);
-const physics = new PhysicsController(engine.camera, engine.controls);
+const physics = new PhysicsController(engine.camera, engine.controls, {
+    spawnPosition: { x: 180, y: 2, z: 0 }
+});
 const weapons = new WeaponSystem(engine.scene, engine.camera);
 const animalManager = new AnimalManager(engine.scene, terrain, EntityRenderer);
 
@@ -60,7 +62,7 @@ if (btnShoot) {
 // --- Networking Setup ---
 network.on('levelConfig', (levelData) => {
     terrain.loadTerrain(levelData);
-    physics.setTerrainHeightFunction((x, z) => terrain.getHeight(x, z));
+    physics.setTerrain(terrain);
 });
 
 network.on('treeConfig', (trees) => {
