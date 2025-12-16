@@ -701,6 +701,14 @@ function animate() {
             velocity.y = 0;
             camera.position.y = terrainH + playerHeight;
             canJump = true;
+        } else if (canJump && velocity.y <= 0 && camera.position.y < terrainH + playerHeight + 1.0) {
+            // Snap to ground (prevent slope hopping)
+            velocity.y = 0;
+            camera.position.y = terrainH + playerHeight;
+            canJump = true;
+        } else {
+            // Truly in air
+            canJump = false;
         }
 
         // --- Networking: Send Updates ---
