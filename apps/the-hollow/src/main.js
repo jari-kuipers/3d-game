@@ -6,6 +6,7 @@ import { TerrainRenderer, EntityRenderer } from 'rendering-utils';
 import { UIComponents } from 'ui-components';
 import { WeaponSystem } from 'shooting-mechanics';
 import { AnimalManager } from 'animal-animation';
+import { FireEffect } from './FireEffect.js';
 
 // --- Game State ---
 const remotePlayers = {};
@@ -59,8 +60,28 @@ if (btnShoot) {
     });
 }
 
-// Join Room Logic
+// --- Intro and Title Screen ---
+const introOverlay = document.getElementById('intro-overlay');
 const titleScreen = document.getElementById('title-screen');
+const fireCanvas = document.getElementById('fire-canvas');
+
+// Fire Effect
+if (fireCanvas) {
+    const fire = new FireEffect(fireCanvas);
+    fire.start();
+}
+
+// Audio
+const audio = new Audio('./title.mp3');
+audio.loop = true;
+
+introOverlay.addEventListener('click', () => {
+    introOverlay.style.display = 'none';
+    titleScreen.style.display = 'flex';
+    audio.play().catch(e => console.log("Audio play failed", e));
+});
+
+// Join Room Logic
 const joinBtn = document.getElementById('join-btn');
 const roomInput = document.getElementById('room-code-input');
 
@@ -68,6 +89,9 @@ joinBtn.addEventListener('click', () => {
     const code = roomInput.value || "default";
     network.joinRoom(code);
     titleScreen.style.display = 'none';
+
+    // Stop music on join? Or fade out?
+    audio.pause();
 
     // Show instructions after title screen
     const instructions = document.getElementById('instructions');

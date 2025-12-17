@@ -115,58 +115,110 @@ canvas {
 }
 
 #title-screen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: #111;
-    color: #eee;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #111;
+  color: #eee;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
 }
 
 #title-screen h1 {
-    font-size: 4rem;
-    letter-spacing: 0.5rem;
-    margin-bottom: 2rem;
-    color: #a00;
-    text-shadow: 0 0 20px #500;
+  font-size: 4rem;
+  letter-spacing: 0.5rem;
+  margin-bottom: 2rem;
+  color: #a00;
+  text-shadow: 0 0 20px #500;
 }
 
 .input-group {
-    display: flex;
-    gap: 10px;
+  display: flex;
+  gap: 10px;
 }
 
 #room-code-input {
-    padding: 10px 20px;
-    font-size: 1.5rem;
-    background: #222;
-    border: 2px solid #555;
-    color: white;
-    text-transform: uppercase;
-    text-align: center;
+  padding: 10px 20px;
+  font-size: 1.5rem;
+  background: #222;
+  border: 2px solid #555;
+  color: white;
+  text-transform: uppercase;
+  text-align: center;
 }
 
 #join-btn {
-    padding: 10px 30px;
-    font-size: 1.5rem;
-    background: #a00;
-    border: none;
-    color: white;
-    cursor: pointer;
-    transition: background 0.2s;
+  padding: 10px 30px;
+  font-size: 1.5rem;
+  background: #a00;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 #join-btn:hover {
-    background: #d00;
+  background: #d00;
+}
+
+#intro-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+  cursor: pointer;
+}
+
+.intro-text {
+  font-size: 2rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.5;
+  }
+}
+
+#fire-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+.title-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
 }
 
 .credits {
-    margin-top: 50px;
-    color: #555;
+  font-size: 1rem;
+  margin-top: 2rem;
+  color: #aaa;
 }
