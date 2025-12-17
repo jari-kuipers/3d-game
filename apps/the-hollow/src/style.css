@@ -1,0 +1,115 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  touch-action: none;
+  /* Prevent browser zooming/scrolling */
+  user-select: none;
+}
+
+#zone_joystick_left,
+#zone_joystick_right {
+  position: absolute;
+  bottom: 50px;
+  width: 150px;
+  height: 150px;
+  z-index: 10;
+  display: none;
+  /* Hidden by default */
+  /* border: 1px solid rgba(255, 255, 255, 0.2); Debugging zones */
+}
+
+#zone_joystick_left {
+  left: 50px;
+}
+
+#zone_joystick_right {
+  right: 50px;
+}
+
+#btn-shoot {
+  position: absolute;
+  bottom: 80px;
+  right: 220px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: rgba(255, 0, 0, 0.5);
+  border: 2px solid white;
+  z-index: 11;
+  display: none;
+  /* Hidden by default */
+}
+
+/* Show controls only on touch devices */
+@media (hover: none) and (pointer: coarse) {
+
+  #btn-shoot,
+  #zone_joystick_left,
+  #zone_joystick_right {
+    display: block;
+  }
+}
+
+#chat-container {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 300px;
+  height: 200px;
+  pointer-events: none;
+  /* Let clicks pass through usually */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  z-index: 100;
+}
+
+#chat-messages {
+  max-height: 150px;
+  overflow-y: hidden;
+  color: white;
+  font-family: monospace;
+  font-size: 14px;
+  text-shadow: 1px 1px 1px black;
+  margin-bottom: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#chat-input {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  padding: 5px;
+  font-family: monospace;
+  outline: none;
+}
+
+
+body {
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+canvas {
+  display: block;
+}
+
+#instructions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: white;
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 20px;
+  border-radius: 8px;
+  transition: opacity 0.3s;
+}

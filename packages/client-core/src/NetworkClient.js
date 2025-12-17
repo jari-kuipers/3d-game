@@ -67,6 +67,19 @@ export class NetworkClient {
     }
 
     /**
+     * Join a specific room
+     */
+    joinRoom(roomCode) {
+        if (this.socket.connected) {
+            this.socket.emit('joinRoom', roomCode);
+        } else {
+            this.socket.on('connect', () => {
+                this.socket.emit('joinRoom', roomCode);
+            });
+        }
+    }
+
+    /**
      * Disconnect from server
      */
     disconnect() {
