@@ -59,9 +59,21 @@ if (btnShoot) {
     });
 }
 
-// Join Room
-const roomCode = window.prompt("Enter Room Code", "default");
-network.joinRoom(roomCode || "default");
+// Join Room Logic
+const titleScreen = document.getElementById('title-screen');
+const joinBtn = document.getElementById('join-btn');
+const roomInput = document.getElementById('room-code-input');
+
+joinBtn.addEventListener('click', () => {
+    const code = roomInput.value || "default";
+    network.joinRoom(code);
+    titleScreen.style.display = 'none';
+
+    // Show instructions after title screen
+    const instructions = document.getElementById('instructions');
+    instructions.style.display = 'block';
+});
+
 // ...
 const animals = {}; // Dummy for now
 const animalManager = { update: () => { }, handleInitialAnimals: () => { }, handleAnimalUpdate: () => { }, getAnimals: () => [] }; // Dummy

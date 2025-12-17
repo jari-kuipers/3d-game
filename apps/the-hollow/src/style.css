@@ -113,3 +113,60 @@ canvas {
   border-radius: 8px;
   transition: opacity 0.3s;
 }
+
+#title-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #111;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+#title-screen h1 {
+    font-size: 4rem;
+    letter-spacing: 0.5rem;
+    margin-bottom: 2rem;
+    color: #a00;
+    text-shadow: 0 0 20px #500;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+
+#room-code-input {
+    padding: 10px 20px;
+    font-size: 1.5rem;
+    background: #222;
+    border: 2px solid #555;
+    color: white;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+#join-btn {
+    padding: 10px 30px;
+    font-size: 1.5rem;
+    background: #a00;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#join-btn:hover {
+    background: #d00;
+}
+
+.credits {
+    margin-top: 50px;
+    color: #555;
+}
